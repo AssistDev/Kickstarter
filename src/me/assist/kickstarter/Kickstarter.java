@@ -85,7 +85,7 @@ public class Kickstarter extends JavaPlugin {
 						double target = 0;
 
 						try {
-							target = Double.parseDouble(args[1]);
+							target = Double.parseDouble(args[2]);
 						} catch (NumberFormatException ex) {
 							p.sendMessage("Target amount must be a number!");
 							return true;
@@ -145,7 +145,7 @@ public class Kickstarter extends JavaPlugin {
 						double amount = 0;
 
 						try {
-							amount = Double.parseDouble(args[1]);
+							amount = Double.parseDouble(args[2]);
 						} catch (NumberFormatException ex) {
 							p.sendMessage("Amount must be a number!");
 							return true;
