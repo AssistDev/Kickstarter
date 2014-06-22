@@ -4,9 +4,11 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import net.milkbowl.vault.economy.Economy;
 
+import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -106,32 +108,8 @@ public class Kickstarter extends JavaPlugin {
 					}
 
 					if (hasProject(p)) {
-						double unclaimed = getUnclaimed(p);
-
-						if (unclaimed > 0) {
-							economy.depositPlayer(p, unclaimed);
-							resetUnclaimed(p);
-						}
-
-						p.sendMessage("You have ended your Kickstarter project. You collected " + getCollected(p) + "$.");
+						p.sendMessage("You have ended your Kickstarter project. You collected " + getCollected(getPlayerProject(p).getName()) + "$.");
 						endProject(p);
-					}
-
-				} else if (args[0].equalsIgnoreCase("claim")) {
-					if (!p.hasPermission("kickstarter.claim")) {
-						p.sendMessage("You don't have permission to perform this command.");
-						return true;
-					}
-
-					if (hasProject(p)) {
-						double unclaimed = getUnclaimed(p);
-
-						if (unclaimed > 0) {
-							economy.depositPlayer(p, unclaimed);
-							resetUnclaimed(p);
-
-							p.sendMessage("You claimed " + unclaimed + "$ worth of funds.");
-						}
 					}
 
 				} else if (args[0].equalsIgnoreCase("fund")) {
@@ -223,6 +201,7 @@ public class Kickstarter extends JavaPlugin {
 	}
 
 	private void createProject(Player p, String name, double target) {
+		c.set(p.getName() + ".ownerUUID", p.getUniqueId().toString());
 		c.set(p.getName() + ".projectName", name);
 		c.set(p.getName() + ".projectTarget", target);
 		c.set(p.getName() + ".totalCollected", 0);
@@ -254,31 +233,40 @@ public class Kickstarter extends JavaPlugin {
 		}
 
 		for (String name : c.getKeys(false)) {
-			projects.add(new Project(name, c.getString(name + ".projectName"), c.getDouble(name + ".projectTarget"), c.getDouble(name + ".totalCollected")));
+			projects.add(new Project(name, UUID.fromString(c.getString(name + ".ownerUUID")), c.getString(name + ".projectName"), c.getDouble(name + ".projectTarget"), c.getDouble(name + ".totalCollected")));
 		}
 
 		return projects;
 	}
 
-	private double getCollected(Player p) {
-		return c.getDouble(p.getName() + ".totalCollected", 0);
+	private Project getPlayerProject(Player p) {
+		for (Project project : getProjects()) {
+			if (project.getPlayer().equals(p.getName())) {
+				return project;
+			}
+		}
+
+		return null;
 	}
 
-	private double getUnclaimed(Player p) {
-		return c.getDouble(p.getName() + ".unclaimedFunds", 0);
-	}
+	private double getCollected(String projectName) {
+		Project project = getProject(projectName);
 
-	private void resetUnclaimed(Player p) {
-		c.set(p.getName() + ".unclaimedFunds", 0);
-		save();
+		if (project != null) {
+			return project.getCollected();
+		}
+
+		return 0;
 	}
 
 	private void fundProject(String projectName, Player funder, double amount) {
 		Project project = getProject(projectName);
 
 		if (project != null) {
+			economy.depositPlayer(Bukkit.getOfflinePlayer(project.getPlayerUUID()), amount);
+
 			String name = project.getName();
-			c.set(name + ".totalCollected", c.getDouble(name + ".totalCollected") + amount);
+			c.set(name + ".totalCollected", getCollected(projectName) + amount);
 
 			List<String> funders;
 
@@ -291,7 +279,6 @@ public class Kickstarter extends JavaPlugin {
 			funders.add(funder.getName() + ":" + amount);
 
 			c.set(name + ".funders", funders);
-			c.set(name + ".unclaimedFunds", c.getDouble(name + ".unclaimedFunds", 0) + amount);
 			save();
 		}
 	}
