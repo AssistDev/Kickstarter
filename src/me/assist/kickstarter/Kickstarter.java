@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import net.milkbowl.vault.economy.Economy;
 
+import org.bukkit.ChatColor;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -17,12 +18,15 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 public class Kickstarter extends JavaPlugin {
 
+	private ProjectManager manager;
+	
 	public Economy economy;
 
 	private File f;
 	private FileConfiguration c;
 	
-	private ProjectManager manager;
+	private String prefix = "[" + ChatColor.BLUE + "Kickstarter" + ChatColor.WHITE + "] " + ChatColor.RESET;
+	private String noPerm = ChatColor.RED + "You don't have permission to perform this command.";
 
 	public void onEnable() {
 		if (getServer().getPluginManager().getPlugin("Vault") != null) {
@@ -53,7 +57,7 @@ public class Kickstarter extends JavaPlugin {
 		}
 
 		c = YamlConfiguration.loadConfiguration(f);
-
+		
 		manager = new ProjectManager(this);
 		manager.getProjects();
 	}
@@ -75,7 +79,7 @@ public class Kickstarter extends JavaPlugin {
 			} else if (args.length > 0) {
 				if (args[0].equalsIgnoreCase("create")) {
 					if (!p.hasPermission("kickstarter.create")) {
-						p.sendMessage("You don't have permission to perform this command.");
+						p.sendMessage(noPerm);
 						return true;
 					}
 
@@ -86,37 +90,37 @@ public class Kickstarter extends JavaPlugin {
 						try {
 							target = Double.parseDouble(args[2]);
 						} catch (NumberFormatException ex) {
-							p.sendMessage("Target amount must be a number!");
+							p.sendMessage(ChatColor.RED+ "Target amount must be a number!");
 							return true;
 						}
 
 						if (!manager.hasProject(p)) {
 							if (manager.getProject(name) == null) {
 								manager.createProject(p, name, target);
-								p.sendMessage("You have created a Kickstarter project called " + name + " with a target of " + target + "!");
+								p.sendMessage(prefix +"You have created a Kickstarter project called " + ChatColor.BLUE + name + ChatColor.WHITE + " with a target of " + ChatColor.BLUE +  target + ChatColor.WHITE + "!");
 							} else {
-								p.sendMessage("The project " + name + " already exists!");
+								p.sendMessage(ChatColor.RED + "The project " + ChatColor.DARK_RED +  name + ChatColor.RED + " already exists!");
 							}
-							
+
 						} else {
-							p.sendMessage("You already have a Kickstarter project! If you wish to create a new project, end the current one first by typing /kickstarter end");
+							p.sendMessage(ChatColor.RED + "You already have a Kickstarter project! If you wish to create a new project, end the current one first by typing " + ChatColor.DARK_RED + " /kickstarter end");
 						}
 					}
 
 				} else if (args[0].equalsIgnoreCase("end")) {
 					if (!p.hasPermission("kickstarter.end")) {
-						p.sendMessage("You don't have permission to perform this command.");
+						p.sendMessage(noPerm);
 						return true;
 					}
 
 					if (manager.hasProject(p)) {
-						p.sendMessage("You have ended your Kickstarter project. You collected " + manager.getCollected(manager.getPlayerProject(p).getName()) + "$.");
+						p.sendMessage(prefix + "You have ended your Kickstarter project. You collected " + ChatColor.BLUE + manager.getCollected(manager.getPlayerProject(p).getName()) + ChatColor.WHITE + "$.");
 						manager.endProject(p);
 					}
 
 				} else if (args[0].equalsIgnoreCase("fund")) {
 					if (!p.hasPermission("kickstarter.fund")) {
-						p.sendMessage("You don't have permission to perform this command.");
+						p.sendMessage(noPerm);
 						return true;
 					}
 
@@ -127,7 +131,7 @@ public class Kickstarter extends JavaPlugin {
 						try {
 							amount = Double.parseDouble(args[2]);
 						} catch (NumberFormatException ex) {
-							p.sendMessage("Amount must be a number!");
+							p.sendMessage(ChatColor.RED + "Amount must be a number!");
 							return true;
 						}
 
@@ -137,15 +141,15 @@ public class Kickstarter extends JavaPlugin {
 							economy.withdrawPlayer(p, amount);
 							manager.fundProject(projectName, p, amount);
 
-							p.sendMessage("You have funded the project " + projectName + " with " + amount + "$.");
+							p.sendMessage(prefix + "You have funded the project " + ChatColor.BLUE +  projectName + ChatColor.WHITE + " with " + ChatColor.BLUE + amount + ChatColor.WHITE + "$.");
 						} else {
-							p.sendMessage("You don't have enough money to fund this project.");
+							p.sendMessage(ChatColor.RED + "You don't have enough money to fund this project.");
 						}
 					}
 
 				} else if (args[0].equalsIgnoreCase("browse")) {
 					if (!p.hasPermission("kickstarter.browse")) {
-						p.sendMessage("You don't have permission to perform this command.");
+						p.sendMessage(noPerm);
 						return true;
 					}
 
@@ -156,26 +160,30 @@ public class Kickstarter extends JavaPlugin {
 							try {
 								page = Integer.parseInt(args[1]);
 							} catch (NumberFormatException ex) {
-								p.sendMessage("Page must be a number!");
+								p.sendMessage(ChatColor.RED + "Page must be a number!");
 								return true;
 							}
 						}
 
-						int projects = manager.getProjects().size();
-						int pages = projects % 10;
+						int all = manager.getProjects().size();
+						int pages = all % 10;
 
 						if (page > pages) {
-							p.sendMessage("Invalid page. Pages: " + pages);
+							p.sendMessage(ChatColor.RED + "Invalid page. Pages: " + ChatColor.RED + pages);
 							return true;
 						}
 
-						for (int i = 0; i < (projects > 10 ? 10 : projects); i++) {
+						for (int i = 0; i < 10; i++) {
 							Project project = manager.getProjects().get((page * 10) + i);
-							p.sendMessage(i + ". Name: " + project.getName() + ", Owner: " + toPlayer(project.getOwner()).getName() + ", Target: " + project.getTarget() + ", Collected: " + project.getCollected() + "$.");
+
+							if (project == null)
+								break;
+							
+							p.sendMessage("" + ChatColor.BLUE + i + ChatColor.WHITE + ". Name: " + ChatColor.BLUE + project.getName() + ChatColor.WHITE + ", Owner: " + ChatColor.BLUE + toPlayer(project.getOwner()).getName() + ChatColor.WHITE + ", Target: " + ChatColor.BLUE + project.getTarget() + ChatColor.WHITE + ", Collected: " + ChatColor.BLUE + project.getCollected() + ChatColor.WHITE + "$.");
 						}
 
 						if (pages > 1) {
-							p.sendMessage("Page 1/" + pages);
+							p.sendMessage("Page " + ChatColor.BLUE + "1" + ChatColor.WHITE + "/" + ChatColor.BLUE + pages);
 						}
 					}
 				}
@@ -184,8 +192,6 @@ public class Kickstarter extends JavaPlugin {
 
 		return false;
 	}
-
-	
 
 	private OfflinePlayer toPlayer(UUID id) {
 		return getServer().getOfflinePlayer(id);
