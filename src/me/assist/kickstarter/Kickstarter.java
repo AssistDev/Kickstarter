@@ -9,6 +9,7 @@ import java.util.UUID;
 import net.milkbowl.vault.economy.Economy;
 
 import org.bukkit.Bukkit;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -72,7 +73,6 @@ public class Kickstarter extends JavaPlugin {
 				p.sendMessage("/kickstarter - display all the Kickstarter commands");
 				p.sendMessage("/kickstarter create <name> <target> - create a project");
 				p.sendMessage("/kickstarter end - end your project");
-				p.sendMessage("/kickstarter claim - claim all unclaimed funds");
 				p.sendMessage("/kickstarter fund <name> <amount> - fund a project");
 				p.sendMessage("/kickstarter browse - display all the projects");
 			} else if (args.length > 0) {
@@ -135,7 +135,7 @@ public class Kickstarter extends JavaPlugin {
 							economy.withdrawPlayer(p, amount);
 							fundProject(projectName, p, amount);
 
-							p.sendMessage("You have funded the project " + projectName + " with " + amount + "$");
+							p.sendMessage("You have funded the project " + projectName + " with " + amount + "$.");
 						} else {
 							p.sendMessage("You don't have enough money to fund this project.");
 						}
@@ -147,32 +147,16 @@ public class Kickstarter extends JavaPlugin {
 						return true;
 					}
 
-					if (args.length == 1) {
-						int projects = getProjects().size();
-						int pages = projects % 10;
-
-						for (int i = 0; i < (projects > 10 ? 10 : projects); i++) {
-							Project project = getProjects().get(i);
-
-							p.sendMessage(i + ". Name: " + project.getName() + ", Owner: " + project.getPlayer() + ", Target: " + project.getTarget() + ", Collected: " + project.getCollected());
-						}
-
-						if (pages > 1) {
-							p.sendMessage("Page 1/" + pages);
-						}
-
-					} else if (args.length == 2) {
-						/*
-						 * probably won't work
-						 */
-
+					if (args.length == 1 || args.length == 2) {
 						int page = 0;
 
-						try {
-							page = Integer.parseInt(args[1]);
-						} catch (NumberFormatException ex) {
-							p.sendMessage("Page must be a number!");
-							return true;
+						if (args.length == 2) {
+							try {
+								page = Integer.parseInt(args[1]);
+							} catch (NumberFormatException ex) {
+								p.sendMessage("Page must be a number!");
+								return true;
+							}
 						}
 
 						int projects = getProjects().size();
@@ -184,13 +168,12 @@ public class Kickstarter extends JavaPlugin {
 						}
 
 						for (int i = 0; i < (projects > 10 ? 10 : projects); i++) {
-							Project project = getProjects().get(page * 10);
-
-							p.sendMessage(i + ". Name: " + project.getName() + ", Owner: " + project.getPlayer() + ", Target: " + project.getTarget() + ", Collected: " + project.getCollected());
+							Project project = getProjects().get((page * 10) + i);
+							p.sendMessage(i + ". Name: " + project.getName() + ", Owner: " + toPlayer(project.getOwner()).getName() + ", Target: " + project.getTarget() + ", Collected: " + project.getCollected() + "$.");
 						}
 
 						if (pages > 1) {
-							p.sendMessage("Page " + page + "/" + pages);
+							p.sendMessage("Page 1/" + pages);
 						}
 					}
 				}
@@ -201,10 +184,9 @@ public class Kickstarter extends JavaPlugin {
 	}
 
 	private void createProject(Player p, String name, double target) {
-		c.set(p.getName() + ".ownerUUID", p.getUniqueId().toString());
-		c.set(p.getName() + ".projectName", name);
-		c.set(p.getName() + ".projectTarget", target);
-		c.set(p.getName() + ".totalCollected", 0);
+		c.set(p.getUniqueId().toString() + ".projectName", name);
+		c.set(p.getUniqueId().toString() + ".projectTarget", target);
+		c.set(p.getUniqueId().toString() + ".totalCollected", 0);
 		save();
 	}
 
@@ -232,8 +214,8 @@ public class Kickstarter extends JavaPlugin {
 			return projects;
 		}
 
-		for (String name : c.getKeys(false)) {
-			projects.add(new Project(name, UUID.fromString(c.getString(name + ".ownerUUID")), c.getString(name + ".projectName"), c.getDouble(name + ".projectTarget"), c.getDouble(name + ".totalCollected")));
+		for (String uuid : c.getKeys(false)) {
+			projects.add(new Project(UUID.fromString(uuid), c.getString(uuid + ".projectName"), c.getDouble(uuid + ".projectTarget"), c.getDouble(uuid + ".totalCollected")));
 		}
 
 		return projects;
@@ -241,7 +223,7 @@ public class Kickstarter extends JavaPlugin {
 
 	private Project getPlayerProject(Player p) {
 		for (Project project : getProjects()) {
-			if (project.getPlayer().equals(p.getName())) {
+			if (project.getOwner() == p.getUniqueId()) {
 				return project;
 			}
 		}
@@ -263,24 +245,28 @@ public class Kickstarter extends JavaPlugin {
 		Project project = getProject(projectName);
 
 		if (project != null) {
-			economy.depositPlayer(Bukkit.getOfflinePlayer(project.getPlayerUUID()), amount);
+			economy.depositPlayer(Bukkit.getOfflinePlayer(project.getOwner()), amount);
 
-			String name = project.getName();
-			c.set(name + ".totalCollected", getCollected(projectName) + amount);
+			String uuid = project.getOwner().toString();
+			c.set(uuid + ".totalCollected", getCollected(projectName) + amount);
 
 			List<String> funders;
 
-			if (!c.contains(name + ".funders")) {
+			if (!c.contains(uuid + ".funders")) {
 				funders = new ArrayList<>();
 			} else {
-				funders = c.getStringList(name + ".funders");
+				funders = c.getStringList(uuid + ".funders");
 			}
 
 			funders.add(funder.getName() + ":" + amount);
 
-			c.set(name + ".funders", funders);
+			c.set(uuid + ".funders", funders);
 			save();
 		}
+	}
+
+	private OfflinePlayer toPlayer(UUID id) {
+		return getServer().getOfflinePlayer(id);
 	}
 
 	private void save() {
