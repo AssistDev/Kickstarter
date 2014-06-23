@@ -2,13 +2,10 @@ package me.assist.kickstarter;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 
 import net.milkbowl.vault.economy.Economy;
 
-import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -20,12 +17,12 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 public class Kickstarter extends JavaPlugin {
 
-	private Economy economy;
+	public Economy economy;
 
 	private File f;
 	private FileConfiguration c;
-
-	private List<Project> projects;
+	
+	private ProjectManager manager;
 
 	public void onEnable() {
 		if (getServer().getPluginManager().getPlugin("Vault") != null) {
@@ -57,8 +54,8 @@ public class Kickstarter extends JavaPlugin {
 
 		c = YamlConfiguration.loadConfiguration(f);
 
-		projects = new ArrayList<>();
-		getProjects();
+		manager = new ProjectManager(this);
+		manager.getProjects();
 	}
 
 	public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
@@ -93,9 +90,14 @@ public class Kickstarter extends JavaPlugin {
 							return true;
 						}
 
-						if (!hasProject(p)) {
-							createProject(p, name, target);
-							p.sendMessage("You have created a Kickstarter project called " + name + " with a target of " + target + "!");
+						if (!manager.hasProject(p)) {
+							if (manager.getProject(name) == null) {
+								manager.createProject(p, name, target);
+								p.sendMessage("You have created a Kickstarter project called " + name + " with a target of " + target + "!");
+							} else {
+								p.sendMessage("The project " + name + " already exists!");
+							}
+							
 						} else {
 							p.sendMessage("You already have a Kickstarter project! If you wish to create a new project, end the current one first by typing /kickstarter end");
 						}
@@ -107,9 +109,9 @@ public class Kickstarter extends JavaPlugin {
 						return true;
 					}
 
-					if (hasProject(p)) {
-						p.sendMessage("You have ended your Kickstarter project. You collected " + getCollected(getPlayerProject(p).getName()) + "$.");
-						endProject(p);
+					if (manager.hasProject(p)) {
+						p.sendMessage("You have ended your Kickstarter project. You collected " + manager.getCollected(manager.getPlayerProject(p).getName()) + "$.");
+						manager.endProject(p);
 					}
 
 				} else if (args[0].equalsIgnoreCase("fund")) {
@@ -133,7 +135,7 @@ public class Kickstarter extends JavaPlugin {
 
 						if (money >= amount) {
 							economy.withdrawPlayer(p, amount);
-							fundProject(projectName, p, amount);
+							manager.fundProject(projectName, p, amount);
 
 							p.sendMessage("You have funded the project " + projectName + " with " + amount + "$.");
 						} else {
@@ -159,7 +161,7 @@ public class Kickstarter extends JavaPlugin {
 							}
 						}
 
-						int projects = getProjects().size();
+						int projects = manager.getProjects().size();
 						int pages = projects % 10;
 
 						if (page > pages) {
@@ -168,7 +170,7 @@ public class Kickstarter extends JavaPlugin {
 						}
 
 						for (int i = 0; i < (projects > 10 ? 10 : projects); i++) {
-							Project project = getProjects().get((page * 10) + i);
+							Project project = manager.getProjects().get((page * 10) + i);
 							p.sendMessage(i + ". Name: " + project.getName() + ", Owner: " + toPlayer(project.getOwner()).getName() + ", Target: " + project.getTarget() + ", Collected: " + project.getCollected() + "$.");
 						}
 
@@ -183,98 +185,22 @@ public class Kickstarter extends JavaPlugin {
 		return false;
 	}
 
-	private void createProject(Player p, String name, double target) {
-		c.set(p.getUniqueId().toString() + ".projectName", name);
-		c.set(p.getUniqueId().toString() + ".projectTarget", target);
-		c.set(p.getUniqueId().toString() + ".totalCollected", 0);
-		save();
-	}
-
-	private void endProject(Player p) {
-		c.set(p.getName(), null);
-		save();
-	}
-
-	private boolean hasProject(Player p) {
-		return c.contains(p.getName());
-	}
-
-	private Project getProject(String projectName) {
-		for (Project project : getProjects()) {
-			if (project.getName().equals(projectName)) {
-				return project;
-			}
-		}
-
-		return null;
-	}
-
-	private List<Project> getProjects() {
-		if (!projects.isEmpty()) {
-			return projects;
-		}
-
-		for (String uuid : c.getKeys(false)) {
-			projects.add(new Project(UUID.fromString(uuid), c.getString(uuid + ".projectName"), c.getDouble(uuid + ".projectTarget"), c.getDouble(uuid + ".totalCollected")));
-		}
-
-		return projects;
-	}
-
-	private Project getPlayerProject(Player p) {
-		for (Project project : getProjects()) {
-			if (project.getOwner() == p.getUniqueId()) {
-				return project;
-			}
-		}
-
-		return null;
-	}
-
-	private double getCollected(String projectName) {
-		Project project = getProject(projectName);
-
-		if (project != null) {
-			return project.getCollected();
-		}
-
-		return 0;
-	}
-
-	private void fundProject(String projectName, Player funder, double amount) {
-		Project project = getProject(projectName);
-
-		if (project != null) {
-			economy.depositPlayer(Bukkit.getOfflinePlayer(project.getOwner()), amount);
-
-			String uuid = project.getOwner().toString();
-			c.set(uuid + ".totalCollected", getCollected(projectName) + amount);
-
-			List<String> funders;
-
-			if (!c.contains(uuid + ".funders")) {
-				funders = new ArrayList<>();
-			} else {
-				funders = c.getStringList(uuid + ".funders");
-			}
-
-			funders.add(funder.getName() + ":" + amount);
-
-			c.set(uuid + ".funders", funders);
-			save();
-		}
-	}
+	
 
 	private OfflinePlayer toPlayer(UUID id) {
 		return getServer().getOfflinePlayer(id);
 	}
 
-	private void save() {
+	public void save() {
 		try {
 			c.save(f);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+	}
+
+	public FileConfiguration getConfiguration() {
+		return c;
 	}
 
 	private boolean setupEconomy() {
