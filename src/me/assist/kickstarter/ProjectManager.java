@@ -95,6 +95,7 @@ public class ProjectManager {
 			}
 
 			funders.add(funder.getName() + ":" + amount);
+			project.addFunder(funder.getName(), amount);
 
 			this.plugin.getConfiguration().set(uuid + ".funders", funders);
 			this.plugin.save();
