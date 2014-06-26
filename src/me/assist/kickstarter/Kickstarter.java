@@ -19,12 +19,12 @@ import org.bukkit.plugin.java.JavaPlugin;
 public class Kickstarter extends JavaPlugin {
 
 	private ProjectManager manager;
-	
+
 	public Economy economy;
 
 	private File f;
 	private FileConfiguration c;
-	
+
 	private String prefix = "[" + ChatColor.BLUE + "Kickstarter" + ChatColor.WHITE + "] " + ChatColor.RESET;
 	private String noPerm = ChatColor.RED + "You don't have permission to perform this command.";
 
@@ -37,7 +37,6 @@ public class Kickstarter extends JavaPlugin {
 			} else {
 				getLogger().severe("Unable to hook to Vault, disabling plugin...");
 				getServer().getPluginManager().disablePlugin(this);
-				return;
 			}
 
 		} else {
@@ -46,26 +45,25 @@ public class Kickstarter extends JavaPlugin {
 			return;
 		}
 
-		f = new File(getDataFolder() + "projects.yml");
+		this.f = new File(getDataFolder() + "projects.yml");
 
-		if (!f.exists()) {
+		if (!this.f.exists()) {
 			try {
-				f.createNewFile();
+				this.f.createNewFile();
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
 		}
 
-		c = YamlConfiguration.loadConfiguration(f);
-		
-		manager = new ProjectManager(this);
-		manager.getProjects();
+		this.c = YamlConfiguration.loadConfiguration(this.f);
+		this.manager = new ProjectManager(this);
 	}
 
 	public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
 		if (cmd.getName().equalsIgnoreCase("kickstarter")) {
-			if (!(sender instanceof Player))
+			if (!(sender instanceof Player)) {
 				return true;
+			}
 
 			Player p = (Player) sender;
 
@@ -79,27 +77,27 @@ public class Kickstarter extends JavaPlugin {
 			} else if (args.length > 0) {
 				if (args[0].equalsIgnoreCase("create")) {
 					if (!p.hasPermission("kickstarter.create")) {
-						p.sendMessage(noPerm);
+						p.sendMessage(this.noPerm);
 						return true;
 					}
 
 					if (args.length == 3) {
 						String name = args[1];
-						double target = 0;
+						double target = 0.0D;
 
 						try {
 							target = Double.parseDouble(args[2]);
 						} catch (NumberFormatException ex) {
-							p.sendMessage(ChatColor.RED+ "Target amount must be a number!");
+							p.sendMessage(ChatColor.RED + "Target amount must be a number!");
 							return true;
 						}
 
-						if (!manager.hasProject(p)) {
-							if (manager.getProject(name) == null) {
-								manager.createProject(p, name, target);
-								p.sendMessage(prefix +"You have created a Kickstarter project called " + ChatColor.BLUE + name + ChatColor.WHITE + " with a target of " + ChatColor.BLUE +  target + ChatColor.WHITE + "!");
+						if (!this.manager.hasProject(p)) {
+							if (this.manager.getProject(name) == null) {
+								this.manager.createProject(p, name, target);
+								p.sendMessage(this.prefix + "You have created a Kickstarter project called " + ChatColor.BLUE + name + ChatColor.WHITE + " with a target of " + ChatColor.BLUE + target + ChatColor.WHITE + "!");
 							} else {
-								p.sendMessage(ChatColor.RED + "The project " + ChatColor.DARK_RED +  name + ChatColor.RED + " already exists!");
+								p.sendMessage(ChatColor.RED + "The project " + ChatColor.DARK_RED + name + ChatColor.RED + " already exists!");
 							}
 
 						} else {
@@ -109,24 +107,26 @@ public class Kickstarter extends JavaPlugin {
 
 				} else if (args[0].equalsIgnoreCase("end")) {
 					if (!p.hasPermission("kickstarter.end")) {
-						p.sendMessage(noPerm);
+						p.sendMessage(this.noPerm);
 						return true;
 					}
 
-					if (manager.hasProject(p)) {
-						p.sendMessage(prefix + "You have ended your Kickstarter project. You collected " + ChatColor.BLUE + manager.getCollected(manager.getPlayerProject(p).getName()) + ChatColor.WHITE + "$.");
-						manager.endProject(p);
+					if (this.manager.hasProject(p)) {
+						p.sendMessage(this.prefix + "You have ended your Kickstarter project. You collected " + ChatColor.BLUE + this.manager.getCollected(this.manager.getPlayerProject(p).getName()) + ChatColor.WHITE + "$.");
+						this.manager.endProject(p);
+					} else {
+						p.sendMessage(ChatColor.RED + "You don't have a Kickstarter project!");
 					}
 
 				} else if (args[0].equalsIgnoreCase("fund")) {
 					if (!p.hasPermission("kickstarter.fund")) {
-						p.sendMessage(noPerm);
+						p.sendMessage(this.noPerm);
 						return true;
 					}
 
 					if (args.length == 3) {
 						String projectName = args[1];
-						double amount = 0;
+						double amount = 0.0D;
 
 						try {
 							amount = Double.parseDouble(args[2]);
@@ -135,13 +135,13 @@ public class Kickstarter extends JavaPlugin {
 							return true;
 						}
 
-						double money = economy.getBalance(p);
+						double money = this.economy.getBalance(p);
 
 						if (money >= amount) {
-							economy.withdrawPlayer(p, amount);
-							manager.fundProject(projectName, p, amount);
+							this.economy.withdrawPlayer(p, amount);
+							this.manager.fundProject(projectName, p, amount);
 
-							p.sendMessage(prefix + "You have funded the project " + ChatColor.BLUE +  projectName + ChatColor.WHITE + " with " + ChatColor.BLUE + amount + ChatColor.WHITE + "$.");
+							p.sendMessage(this.prefix + "You have funded the project " + ChatColor.BLUE + projectName + ChatColor.WHITE + " with " + ChatColor.BLUE + amount + ChatColor.WHITE + "$.");
 						} else {
 							p.sendMessage(ChatColor.RED + "You don't have enough money to fund this project.");
 						}
@@ -149,12 +149,12 @@ public class Kickstarter extends JavaPlugin {
 
 				} else if (args[0].equalsIgnoreCase("browse")) {
 					if (!p.hasPermission("kickstarter.browse")) {
-						p.sendMessage(noPerm);
+						p.sendMessage(this.noPerm);
 						return true;
 					}
 
 					if (args.length == 1 || args.length == 2) {
-						int page = 0;
+						int page = 1;
 
 						if (args.length == 2) {
 							try {
@@ -165,26 +165,26 @@ public class Kickstarter extends JavaPlugin {
 							}
 						}
 
-						int all = manager.getProjects().size();
+						int all = this.manager.getProjects().size();
 						int pages = all % 10;
 
 						if (page > pages) {
-							p.sendMessage(ChatColor.RED + "Invalid page. Pages: " + ChatColor.RED + pages);
+							p.sendMessage(ChatColor.RED + "Invalid page. Pages: " + ChatColor.DARK_RED + pages);
 							return true;
 						}
 
 						for (int i = 0; i < 10; i++) {
-							Project project = manager.getProjects().get((page * 10) + i);
+							int j = page * 10 + i;
+							Project project = (Project) this.manager.getProjects().get(j);
 
-							if (project == null)
+							if (project == null) {
 								break;
-							
-							p.sendMessage("" + ChatColor.BLUE + i + ChatColor.WHITE + ". Name: " + ChatColor.BLUE + project.getName() + ChatColor.WHITE + ", Owner: " + ChatColor.BLUE + toPlayer(project.getOwner()).getName() + ChatColor.WHITE + ", Target: " + ChatColor.BLUE + project.getTarget() + ChatColor.WHITE + ", Collected: " + ChatColor.BLUE + project.getCollected() + ChatColor.WHITE + "$.");
+							}
+
+							p.sendMessage("" + ChatColor.BLUE + j + ChatColor.WHITE + ". Name: " + ChatColor.BLUE + project.getName() + ChatColor.WHITE + ", Owner: " + ChatColor.BLUE + toPlayer(project.getOwner()).getName() + ChatColor.WHITE + ", Target: " + ChatColor.BLUE + project.getTarget() + ChatColor.WHITE + ", Collected: " + ChatColor.BLUE + project.getCollected() + ChatColor.WHITE + "$.");
 						}
 
-						if (pages > 1) {
-							p.sendMessage("Page " + ChatColor.BLUE + "1" + ChatColor.WHITE + "/" + ChatColor.BLUE + pages);
-						}
+						p.sendMessage("Page " + ChatColor.BLUE + pages + ChatColor.WHITE + "/" + ChatColor.BLUE + pages);
 					}
 				}
 			}
@@ -199,23 +199,23 @@ public class Kickstarter extends JavaPlugin {
 
 	public void save() {
 		try {
-			c.save(f);
+			this.c.save(this.f);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 	}
 
 	public FileConfiguration getConfiguration() {
-		return c;
+		return this.c;
 	}
 
 	private boolean setupEconomy() {
 		RegisteredServiceProvider<Economy> economyProvider = getServer().getServicesManager().getRegistration(Economy.class);
 
 		if (economyProvider != null) {
-			economy = economyProvider.getProvider();
+			this.economy = ((Economy) economyProvider.getProvider());
 		}
 
-		return economy != null;
+		return this.economy != null;
 	}
 }
