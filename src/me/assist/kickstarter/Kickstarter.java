@@ -2,6 +2,7 @@ package me.assist.kickstarter;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Map.Entry;
 import java.util.UUID;
 
 import net.milkbowl.vault.economy.Economy;
@@ -68,12 +69,13 @@ public class Kickstarter extends JavaPlugin {
 			Player p = (Player) sender;
 
 			if (args.length == 0) {
-				p.sendMessage("Showing all Kickstarter commands:");
-				p.sendMessage("/kickstarter - display all the Kickstarter commands");
-				p.sendMessage("/kickstarter create <name> <target> - create a project");
-				p.sendMessage("/kickstarter end - end your project");
-				p.sendMessage("/kickstarter fund <name> <amount> - fund a project");
-				p.sendMessage("/kickstarter browse - display all the projects");
+				p.sendMessage(prefix + "Showing all Kickstarter commands:");
+				p.sendMessage(ChatColor.BLUE + "/kickstarter - display all the Kickstarter commands");
+				p.sendMessage(ChatColor.BLUE + "/kickstarter create <name> <target> - create a project");
+				p.sendMessage(ChatColor.BLUE + "/kickstarter end - end your project");
+				p.sendMessage(ChatColor.BLUE + "/kickstarter project - show your project");
+				p.sendMessage(ChatColor.BLUE + "/kickstarter fund <name> <amount> - fund a project");
+				p.sendMessage(ChatColor.BLUE + "/kickstarter browse - display all the projects");
 			} else if (args.length > 0) {
 				if (args[0].equalsIgnoreCase("create")) {
 					if (!p.hasPermission("kickstarter.create")) {
@@ -114,6 +116,34 @@ public class Kickstarter extends JavaPlugin {
 					if (this.manager.hasProject(p)) {
 						p.sendMessage(this.prefix + "You have ended your Kickstarter project. You collected " + ChatColor.BLUE + this.manager.getCollected(this.manager.getPlayerProject(p).getName()) + ChatColor.WHITE + "$.");
 						this.manager.endProject(p);
+					} else {
+						p.sendMessage(ChatColor.RED + "You don't have a Kickstarter project!");
+					}
+
+				} else if (args[0].equalsIgnoreCase("project")) {
+					if (!p.hasPermission("kickstarter.project")) {
+						p.sendMessage(this.noPerm);
+						return true;
+					}
+
+					if (this.manager.hasProject(p)) {
+						Project project = this.manager.getPlayerProject(p);
+
+						p.sendMessage(prefix + "Showing your project:");
+						p.sendMessage(ChatColor.WHITE + "Name: " + ChatColor.BLUE + project.getName());
+						p.sendMessage(ChatColor.WHITE + "Target: " + ChatColor.BLUE + project.getTarget());
+						p.sendMessage(ChatColor.WHITE + "Collected: " + ChatColor.BLUE + project.getCollected());
+
+						double k = project.getTarget() - project.getCollected();
+						p.sendMessage(ChatColor.WHITE + "Remaining: " + ChatColor.BLUE + (k <= 0 ? "You've reached your target!" : k + ChatColor.WHITE.toString() + "$."));
+
+						StringBuilder builder = new StringBuilder();
+
+						for (Entry<String, Double> entry : project.getFunders().entrySet()) {
+							builder.append(ChatColor.BLUE + entry.getKey() + ChatColor.WHITE + "(" + ChatColor.BLUE + entry.getValue() + ChatColor.WHITE + ")").append(ChatColor.GRAY + ", " + ChatColor.RESET);
+						}
+
+						p.sendMessage(ChatColor.WHITE + "Funders: " + ChatColor.BLUE + (builder.toString().isEmpty() ? "You have no funders yet :(" : builder.toString()));
 					} else {
 						p.sendMessage(ChatColor.RED + "You don't have a Kickstarter project!");
 					}
@@ -174,7 +204,7 @@ public class Kickstarter extends JavaPlugin {
 						}
 
 						for (int i = 0; i < 10; i++) {
-							int j = page * 10 + i;
+							int j = (page == 1 ? 0 : page) * 10 + i;
 							Project project = (Project) this.manager.getProjects().get(j);
 
 							if (project == null) {
@@ -184,7 +214,7 @@ public class Kickstarter extends JavaPlugin {
 							p.sendMessage("" + ChatColor.BLUE + j + ChatColor.WHITE + ". Name: " + ChatColor.BLUE + project.getName() + ChatColor.WHITE + ", Owner: " + ChatColor.BLUE + toPlayer(project.getOwner()).getName() + ChatColor.WHITE + ", Target: " + ChatColor.BLUE + project.getTarget() + ChatColor.WHITE + ", Collected: " + ChatColor.BLUE + project.getCollected() + ChatColor.WHITE + "$.");
 						}
 
-						p.sendMessage("Page " + ChatColor.BLUE + pages + ChatColor.WHITE + "/" + ChatColor.BLUE + pages);
+						p.sendMessage(prefix + "Page " + ChatColor.BLUE + page + ChatColor.WHITE + "/" + ChatColor.BLUE + pages);
 					}
 				}
 			}
