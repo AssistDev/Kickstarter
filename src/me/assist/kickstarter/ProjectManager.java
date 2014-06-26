@@ -13,24 +13,27 @@ public class ProjectManager {
 	private List<Project> projects;
 
 	public ProjectManager(Kickstarter instance) {
-		plugin = instance;
+		this.plugin = instance;
+
+		this.projects = new ArrayList<>();
+		getProjects();
 	}
 
 	public void createProject(Player p, String name, double target) {
-		plugin.getConfiguration().set(p.getUniqueId().toString() + ".projectName", name);
-		plugin.getConfiguration().set(p.getUniqueId().toString() + ".projectTarget", target);
-		plugin.getConfiguration().set(p.getUniqueId().toString() + ".totalCollected", 0);
+		this.plugin.getConfiguration().set(p.getUniqueId().toString() + ".projectName", name);
+		this.plugin.getConfiguration().set(p.getUniqueId().toString() + ".projectTarget", target);
+		this.plugin.getConfiguration().set(p.getUniqueId().toString() + ".totalCollected", 0);
 
-		plugin.save();
+		this.plugin.save();
 	}
 
 	public void endProject(Player p) {
-		plugin.getConfiguration().set(p.getName(), null);
-		plugin.save();
+		this.plugin.getConfiguration().set(p.getUniqueId().toString(), null);
+		this.plugin.save();
 	}
 
 	public boolean hasProject(Player p) {
-		return plugin.getConfiguration().contains(p.getName());
+		return this.plugin.getConfiguration().contains(p.getUniqueId().toString());
 	}
 
 	public Project getProject(String projectName) {
@@ -44,15 +47,15 @@ public class ProjectManager {
 	}
 
 	public List<Project> getProjects() {
-		if (!projects.isEmpty()) {
-			return projects;
+		if (!this.projects.isEmpty()) {
+			return this.projects;
 		}
 
-		for (String uuid : plugin.getConfiguration().getKeys(false)) {
-			projects.add(new Project(plugin, UUID.fromString(uuid), plugin.getConfiguration().getString(uuid + ".projectName"), plugin.getConfiguration().getDouble(uuid + ".projectTarget"), plugin.getConfiguration().getDouble(uuid + ".totalCollected")));
+		for (String uuid : this.plugin.getConfiguration().getKeys(false)) {
+			this.projects.add(new Project(this.plugin, UUID.fromString(uuid), this.plugin.getConfiguration().getString(uuid + ".projectName"), this.plugin.getConfiguration().getDouble(uuid + ".projectTarget"), this.plugin.getConfiguration().getDouble(uuid + ".totalCollected")));
 		}
 
-		return projects;
+		return this.projects;
 	}
 
 	public Project getPlayerProject(Player p) {
@@ -72,30 +75,29 @@ public class ProjectManager {
 			return project.getCollected();
 		}
 
-		return 0;
+		return 0.0D;
 	}
 
 	public void fundProject(String projectName, Player funder, double amount) {
 		Project project = getProject(projectName);
 
 		if (project != null) {
-			plugin.economy.depositPlayer(Bukkit.getOfflinePlayer(project.getOwner()), amount);
+			this.plugin.economy.depositPlayer(Bukkit.getOfflinePlayer(project.getOwner()), amount);
 
 			String uuid = project.getOwner().toString();
-			plugin.getConfiguration().set(uuid + ".totalCollected", getCollected(projectName) + amount);
-
+			this.plugin.getConfiguration().set(uuid + ".totalCollected", Double.valueOf(getCollected(projectName) + amount));
 			List<String> funders;
 
-			if (!plugin.getConfiguration().contains(uuid + ".funders")) {
+			if (!this.plugin.getConfiguration().contains(uuid + ".funders")) {
 				funders = new ArrayList<>();
 			} else {
-				funders = plugin.getConfiguration().getStringList(uuid + ".funders");
+				funders = this.plugin.getConfiguration().getStringList(uuid + ".funders");
 			}
 
 			funders.add(funder.getName() + ":" + amount);
 
-			plugin.getConfiguration().set(uuid + ".funders", funders);
-			plugin.save();
+			this.plugin.getConfiguration().set(uuid + ".funders", funders);
+			this.plugin.save();
 		}
 	}
 }
